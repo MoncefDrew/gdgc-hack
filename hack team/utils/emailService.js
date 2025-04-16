@@ -39,7 +39,7 @@ const sendVerificationEmail = async (email, token, fullName) => {
   
   // Construct verification URL
   const baseURL = process.env.BASE_URL || 'http://localhost:3000';
-  const verificationURL = `${baseURL}/api/participants/verify/${token}`;
+  const verificationURL = `${baseURL}/api/participants/verify-email/${token}`;
   
   console.log('Sending verification email to:', email);
   console.log('Verification URL:', verificationURL);

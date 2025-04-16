@@ -5,7 +5,7 @@ const Team = require('../models/Team');
 const { sendVerificationEmail } = require('../utils/emailService');
 
 // Create a new participant
-router.post('/', async (req, res, next) => {
+router.post('/register', async (req, res, next) => {
   try {
     console.log('Creating new participant:', req.body);
     
@@ -75,7 +75,7 @@ router.post('/', async (req, res, next) => {
 });
 
 // Verify email
-router.get('/verify/:token', async (req, res, next) => {
+router.get('/verify-email/:token', async (req, res, next) => {
   try {
     const token = req.params.token;
     console.log('Verifying email with token:', token);
@@ -113,7 +113,7 @@ router.get('/verify/:token', async (req, res, next) => {
 });
 
 // Resend verification email
-router.post('/resend-verification/:id', async (req, res, next) => {
+router.post('/resend-verification-email/:id', async (req, res, next) => {
   try {
     const participantId = req.params.id;
     console.log('Resending verification email for participant ID:', participantId);
@@ -160,7 +160,7 @@ router.post('/resend-verification/:id', async (req, res, next) => {
 });
 
 // Get all participants
-router.get('/getallparticipants', async (req, res, next) => {
+router.get('/get-all-participants', async (req, res, next) => {
   try {
     console.log('Fetching all participants');
     const participants = await Participant.find();
@@ -178,7 +178,7 @@ router.get('/getallparticipants', async (req, res, next) => {
 });
 
 // Get a single participant
-router.get('/getparticipantbyid/:id', async (req, res, next) => {
+router.get('/get-participant-by-id/:id', async (req, res, next) => {
   try {
     console.log('Fetching participant with ID:', req.params.id);
     const participant = await Participant.findById(req.params.id);
@@ -203,7 +203,7 @@ router.get('/getparticipantbyid/:id', async (req, res, next) => {
 });
 
 // Update a participant
-router.put('/updateparticipant/:id', async (req, res, next) => {
+router.put('/update-participant/:id', async (req, res, next) => {
   try {
     console.log('Updating participant with ID:', req.params.id);
     console.log('Update data:', req.body);

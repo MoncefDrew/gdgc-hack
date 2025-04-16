@@ -36,7 +36,7 @@ router.post('/', async (req, res, next) => {
 });
 
 // Get all teams
-router.get('/', async (req, res, next) => {
+router.get('/get-all-teams', async (req, res, next) => {
   try {
     console.log('Fetching all teams');
     const teams = await Team.find().populate('participants');
@@ -54,7 +54,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // Get a single team
-router.get('/:id', async (req, res, next) => {
+router.get('/get-team-by-id/:id', async (req, res, next) => {
   try {
     console.log('Fetching team with ID:', req.params.id);
     const team = await Team.findById(req.params.id).populate('participants');
@@ -79,7 +79,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // Update a team
-router.put('/:id', async (req, res, next) => {
+router.put('/update-team/:id', async (req, res, next) => {
   try {
     console.log('Updating team with ID:', req.params.id);
     console.log('Update data:', req.body);

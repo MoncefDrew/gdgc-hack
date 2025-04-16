@@ -19,4 +19,14 @@ const teamSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Pre-save validation for team size
+teamSchema.pre('save', function(next) {
+  if (this.participants && this.participants.length > 4) {
+    const error = new Error('Team cannot have more than 4 participants');
+    error.name = 'ValidationError';
+    return next(error);
+  }
+  next();
+});
+
 module.exports = mongoose.model('Team', teamSchema); 

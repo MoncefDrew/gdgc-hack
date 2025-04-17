@@ -17,6 +17,12 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// Log all incoming requests
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://mnimidou1:BqFwx3nGzrBnZ8k6@cluster0.5zmlytl.mongodb.net')
   .then(() => console.log('Connected to MongoDB'))

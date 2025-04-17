@@ -15,6 +15,7 @@ A simple Node.js + Express API for hackathon registration with MongoDB.
 
 1. **Participant**: Store information about individual participants
 2. **Team**: Manage team registrations and their statuses (max 4 members)
+3. **Admin** : Store informations about the administrator
 
 ## Getting Started
 
@@ -47,6 +48,7 @@ A simple Node.js + Express API for hackathon registration with MongoDB.
    - Set the `MONGODB_URI` for your MongoDB connection
    - Set the `BASE_URL` for your API (used in verification emails)
    - Configure email settings (`EMAIL_SERVICE`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM`)
+   - Set the `JWT-SECRET`for json webtokens provider.
 
 5. Start the development server:
    ```
@@ -63,6 +65,17 @@ A simple Node.js + Express API for hackathon registration with MongoDB.
 - `GET /api/get-all-participants` - List all participants
 - `GET /api/get-participant-by-id/:id` - Get a single participant
 - `PUT /api/update-participant/:id` - Update a participant
+
+### Admin 
+
+- `POST /api/admin/login` - perform an admin sign in  
+- `POST /api/admin/forgot-password` - demand a new password change  
+- `POST /api/admin/resetPassword` - change the password via the reset link  
+- `GET /api/admin/teams` - get all teams or filter by status  
+  - **Optional Query Parameter**:
+    - `status`: Filter teams by their status (`Pending`, `Accepted`, `Rejected`)  
+    - Example: `/api/admin/teams?status=Accepted`
+- `GET /api/admin/participants` - get all registered users
 
 ### Teams
 
@@ -133,5 +146,13 @@ The application follows the MVC (Model-View-Controller) pattern:
    - `getTeamById`: Retrieves a single team with participants
    - `updateTeam`: Updates team information
    - `getTeamStats`: Provides statistics about teams by status
+
+3. **Admin Controller**:
+   - `signup`: Creates a new admin account
+   - `login`: sign in into the admin account
+   - `forgotPassword`: request a link for the password reset
+   - `resetPassword`: change the account password
+
+
 
 This controller-based architecture helps organize business logic, separates concerns, and makes the codebase more maintainable. 

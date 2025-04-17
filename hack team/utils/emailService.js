@@ -7,8 +7,8 @@ const createDevTransporter = () => {
     port: 587,
     secure: false,
     auth: {
-      user: process.env.EMAIL_USER || 'hope.windler@ethereal.email',
-      pass: process.env.EMAIL_PASS || 'ZE3ydesTBeXckrfAXV'
+      user: process.env.EMAIL_USER || 'joaquin.predovic@ethereal.email',
+      pass: process.env.EMAIL_PASS || 'zkBRB7aUK7SF72umnC'
     }
   });
 };
@@ -76,6 +76,36 @@ const sendVerificationEmail = async (email, token, fullName) => {
   }
 };
 
+// Send reset password email
+const sendResetPasswordEmail = async (email, resetLink, htmlContent) => {
+  const transporter = getTransporter(); // <== Add this line!
+  
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Reset Your Password',
+    html: htmlContent,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("----------------------");
+
+    console.log('Reset email sent:', info.messageId);
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Preview URL:', nodemailer.getTestMessageUrl(info));
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error sending reset password email:', error);
+    return false;
+  }
+};
+
+
 module.exports = {
-  sendVerificationEmail
-}; 
+  sendVerificationEmail,
+  sendResetPasswordEmail
+};

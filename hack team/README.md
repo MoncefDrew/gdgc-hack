@@ -47,6 +47,7 @@ A simple Node.js + Express API for hackathon registration with MongoDB.
    - Set the `MONGODB_URI` for your MongoDB connection
    - Set the `BASE_URL` for your API (used in verification emails)
    - Configure email settings (`EMAIL_SERVICE`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM`)
+   - Set the `JWT-SECRET`for json webtokens provider.
 
 5. Start the development server:
    ```
@@ -63,6 +64,12 @@ A simple Node.js + Express API for hackathon registration with MongoDB.
 - `GET /api/get-all-participants` - List all participants
 - `GET /api/get-participant-by-id/:id` - Get a single participant
 - `PUT /api/update-participant/:id` - Update a participant
+
+### Admin 
+
+- `POST /api/admin/login` - perform an admin sign in
+- `POST /api/admin/forgot-password` - demand a new password change 
+- `POST /api/admin/resetPassword` - change the password via the reset link
 
 ### Teams
 

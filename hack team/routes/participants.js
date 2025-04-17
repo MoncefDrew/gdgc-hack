@@ -3,30 +3,12 @@ const router = express.Router();
 const Participant = require('../models/Participant');
 const Team = require('../models/Team');
 const { sendVerificationEmail } = require('../utils/emailService');
+const { checkTeamCapacity, checkTeamChangeCapacity } = require('../middleware/teamValidation');
 
-// Create a new participant
-router.post('/register', async (req, res, next) => {
+// Create a new participant - using the team capacity middleware
+router.post('/register', checkTeamCapacity, async (req, res, next) => {
   try {
     console.log('Creating new participant:', req.body);
-    
-    // Check if team exists with the given team name
-    const teamName = req.body.teamName;
-    console.log('Looking for team with name:', teamName);
-    
-    let team = await Team.findOne({ name: teamName });
-    
-    if (team) {
-      console.log('Team found, checking team size');
-      // Check if team already has 4 participants
-      if (team.participants.length >= 4) {
-        console.log('Team already has the maximum number of participants (4)');
-        return res.status(400).json({
-          success: false,
-          error: 'This team already has the maximum number of participants (4)'
-        });
-      }
-      console.log('Team has space for more participants');
-    }
     
     // Create the participant
     const participant = await Participant.create(req.body);
@@ -43,6 +25,12 @@ router.post('/register', async (req, res, next) => {
       verificationToken,
       participant.fullName
     );
+    
+    // Check if team exists with the given team name
+    const teamName = req.body.teamName;
+    console.log('Looking for team with name:', teamName);
+    
+    let team = await Team.findOne({ name: teamName });
     
     if (team) {
       console.log('Adding participant to existing team');
@@ -215,8 +203,8 @@ router.get('/get-participant-by-id/:id', async (req, res, next) => {
   }
 });
 
-// Update a participant
-router.put('/update-participant/:id', async (req, res, next) => {
+// Update a participant - using the team change capacity middleware
+router.put('/update-participant/:id', checkTeamChangeCapacity, async (req, res, next) => {
   try {
     console.log('Updating participant with ID:', req.params.id);
     console.log('Update data:', req.body);
@@ -229,21 +217,6 @@ router.put('/update-participant/:id', async (req, res, next) => {
         success: false,
         error: 'Participant not found'
       });
-    }
-    
-    // Check if team name is changing and verify new team has space
-    if (req.body.teamName && oldParticipant.teamName !== req.body.teamName) {
-      console.log('Team name is changing, checking new team capacity');
-      
-      // Check if new team exists and has capacity
-      const newTeam = await Team.findOne({ name: req.body.teamName });
-      if (newTeam && newTeam.participants.length >= 4) {
-        console.log('New team already has maximum participants (4)');
-        return res.status(400).json({
-          success: false,
-          error: 'The team you are trying to join already has the maximum number of participants (4)'
-        });
-      }
     }
     
     // Update the participant
@@ -314,4 +287,4 @@ router.put('/update-participant/:id', async (req, res, next) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

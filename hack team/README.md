@@ -9,6 +9,7 @@ A simple Node.js + Express API for hackathon registration with MongoDB.
 - Manage teams (max 4 participants per team)
 - Track hackathon applications
 - Middleware-based validation
+- MVC architecture with controllers
 
 ## Models
 
@@ -112,4 +113,25 @@ The application uses middleware for various validations and operations:
    - Express JSON middleware for parsing request bodies
    - CORS middleware for cross-origin requests
 
-These middleware components help maintain data integrity and improve code organization by centralizing validation logic. 
+These middleware components help maintain data integrity and improve code organization by centralizing validation logic.
+
+## Controllers
+
+The application follows the MVC (Model-View-Controller) pattern:
+
+1. **Participant Controller**:
+   - `createParticipant`: Handles participant registration
+   - `verifyEmail`: Processes email verification
+   - `resendVerificationEmail`: Resends verification emails
+   - `getAllParticipants`: Retrieves all participants
+   - `getParticipantById`: Retrieves a single participant
+   - `updateParticipant`: Updates participant information
+
+2. **Team Controller**:
+   - `createTeam`: Creates a new team
+   - `getAllTeams`: Retrieves all teams with participants
+   - `getTeamById`: Retrieves a single team with participants
+   - `updateTeam`: Updates team information
+   - `getTeamStats`: Provides statistics about teams by status
+
+This controller-based architecture helps organize business logic, separates concerns, and makes the codebase more maintainable. 

@@ -141,4 +141,12 @@ The application follows the MVC (Model-View-Controller) pattern:
    - `updateTeam`: Updates team information
    - `getTeamStats`: Provides statistics about teams by status
 
+3. **Admin Controller**:
+   - `signup`: Creates a new admin account
+   - `login`: sign in into the admin account
+   - `forgotPassword`: request a link for the password reset
+   - `resetPassword`: change the account password
+
+
+
 This controller-based architecture helps organize business logic, separates concerns, and makes the codebase more maintainable. 

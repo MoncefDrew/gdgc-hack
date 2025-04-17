@@ -8,6 +8,7 @@ A simple Node.js + Express API for hackathon registration with MongoDB.
 - Email verification for participants
 - Manage teams (max 4 participants per team)
 - Track hackathon applications
+- Middleware-based validation
 
 ## Models
 
@@ -96,4 +97,19 @@ The API enforces a maximum team size of 4 participants:
 1. When creating a new participant, the system checks if their team already has 4 members
 2. When updating a participant's team, the system verifies the new team has available space
 3. The Team model includes validation to prevent exceeding the 4-participant limit
-4. Appropriate error messages are returned if a team is at capacity 
+4. Appropriate error messages are returned if a team is at capacity
+
+## Middleware Architecture
+
+The application uses middleware for various validations and operations:
+
+1. **Team Validation Middleware**:
+   - `checkTeamCapacity`: Ensures teams don't exceed 4 members during participant registration
+   - `checkTeamChangeCapacity`: Ensures teams don't exceed 4 members when participants change teams
+
+2. **General Middleware**:
+   - Request logging middleware to log all incoming requests
+   - Express JSON middleware for parsing request bodies
+   - CORS middleware for cross-origin requests
+
+These middleware components help maintain data integrity and improve code organization by centralizing validation logic. 

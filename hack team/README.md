@@ -15,6 +15,7 @@ A simple Node.js + Express API for hackathon registration with MongoDB.
 
 1. **Participant**: Store information about individual participants
 2. **Team**: Manage team registrations and their statuses (max 4 members)
+3. **Admin** : Store informations about the administrator
 
 ## Getting Started
 

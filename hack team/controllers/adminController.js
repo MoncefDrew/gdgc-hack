@@ -1,6 +1,6 @@
 const Admin = require("../models/Admin");
 const Participant = require("../models/Participant");
-const Team = require("../models/Team")
+const Team = require("../models/Team");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { sendResetPasswordEmail } = require("../utils/emailService"); // Import email service
@@ -154,66 +154,34 @@ const resetPassword = async (req, res) => {
 };
 
 /**
- * @desc    Get Teams (with pagination parameters)
- * @route   POST /api/admin/teams
+ * @desc    check in the participant
+ * @route   POST /api/admin/check-in
  * @access  Public
  */
-const getTeams = async (req, res) => {
+const checkIn = async (req, res) => {
   try {
-    const { status } = req.query;
+    const { email, qrCode } = req.body;
 
-    // Optional status filter, case-insensitive
-    const filter = {};
-    if (status) {
-      const validStatuses = ['Pending', 'Accepted', 'Rejected'];
-      const normalizedStatus = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+    // Find participant by email or QR code
+    const participant = await Participant.findOne({
+      $or: [{ email }, { qrCode }],
+    });
 
-      if (!validStatuses.includes(normalizedStatus)) {
-        return res.status(400).json({ error: 'Invalid status filter' });
-      }
-
-      filter.status = normalizedStatus;
+    if (!participant) {
+      return res.status(404).json({ message: "Participant not found" });
     }
 
-    const teams = await Team.find(filter)
-      .populate('participants')
-      .sort({ createdAt: -1 }); // newest teams first (optional)
+    // Update attendance status
+    participant.attendanceStatus = "Attended";
+    await participant.save();
 
-    res.status(200).json({ teams });
-  } catch (error) {
-    console.error('Error fetching teams:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-};
-
-
-/**
- * @desc    Get Participants (with pagination parameters)
- * @route   POST /api/admin/participants
- * @access  Public
- */
-const getParticipants = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1; // Default page is 1
-    const limit = parseInt(req.query.limit) || 5; // Default limit is 5
-    const skip = (page - 1) * limit;
-
-    const participants = await Participant.find()
-      .skip(skip)
-      .limit(limit)
-      .sort({ createdAt: -1 }); // Optional: newest first
-
-    const total = await Participant.countDocuments();
-
-    res.status(200).json({
-      data: participants,
-      page,
-      totalPages: Math.ceil(total / limit),
-      totalParticipants: total,
-    });
-  } catch (error) {
-    console.error("Error fetching participants:", error);
-    res.status(500).json({ message: "Internal server error" });
+    return res
+      .status(200)
+      .json({ message: "Participant checked in", participant });
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err.message });
   }
 };
 
@@ -222,6 +190,5 @@ module.exports = {
   login,
   forgotPassword,
   resetPassword,
-  getTeams,
-  getParticipants,
+  checkIn,
 };

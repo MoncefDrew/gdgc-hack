@@ -56,6 +56,11 @@ const participantSchema = new mongoose.Schema({
   hackathonExperience: {
     type: String,
     default: ''
+  },
+  attendanceStatus: {
+    type: String,
+    enum: ['Absent', 'Attended'],
+    default: 'Absent'
   }
 }, {
   timestamps: true

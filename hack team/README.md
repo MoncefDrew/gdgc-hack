@@ -71,11 +71,7 @@ A simple Node.js + Express API for hackathon registration with MongoDB.
 - `POST /api/admin/login` - perform an admin sign in  
 - `POST /api/admin/forgot-password` - demand a new password change  
 - `POST /api/admin/resetPassword` - change the password via the reset link  
-- `GET /api/admin/teams` - get all teams or filter by status  
-  - **Optional Query Parameter**:
-    - `status`: Filter teams by their status (`Pending`, `Accepted`, `Rejected`)  
-    - Example: `/api/admin/teams?status=Accepted`
-- `GET /api/admin/participants` - get all registered users
+
 
 ### Teams
 

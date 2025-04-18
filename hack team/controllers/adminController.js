@@ -1,7 +1,8 @@
 const Admin = require("../models/Admin");
 const Participant = require("../models/Participant");
-const Team = require("../models/Team");
 const bcrypt = require("bcryptjs");
+const nodemailer = require("nodemailer");
+const QRCode = require("qrcode");
 const jwt = require("jsonwebtoken");
 const { sendResetPasswordEmail } = require("../utils/emailService"); // Import email service
 
@@ -153,6 +154,7 @@ const resetPassword = async (req, res) => {
   }
 };
 
+
 /**
  * @desc    check in the participant
  * @route   POST /api/admin/check-in
@@ -185,10 +187,85 @@ const checkIn = async (req, res) => {
   }
 };
 
+
+/**
+ * @desc    Get all checked-in participants
+ * @route   GET /api/admin/check-ins
+ * @access  Private (Admin)
+ */
+const getAllCheckIns = async (req, res) => {
+  try {
+    const checkedInParticipants = await Participant.find({ attendanceStatus: 'Attended' });
+
+    return res.status(200).json({
+      message: 'Checked-in participants retrieved successfully',
+      count: checkedInParticipants.length,
+      participants: checkedInParticipants,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+
+/**
+ * @desc    send acceptance email to the participants
+ * @route   GET /api/admin/send-acceptance-email
+ * @access  Private (Admin)
+ */
+const sendAcceptanceEmail = async (req, res, next) => {
+  try {
+    const acceptedParticipants = await Participant.find({ status: "Accepted" });
+
+    if (acceptedParticipants.length === 0) {
+      return res.status(404).json({ message: "No accepted participants found." });
+    }
+
+    // Setup email transporter (replace with your SMTP config)
+    const transporter = nodemailer.createTransport({
+      service: "Gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    for (const participant of acceptedParticipants) {
+      // Generate QR code with their unique ID or email
+      const qrCodeData = await QRCode.toDataURL(participant.email); // or participant._id
+
+      // Construct the email
+      const mailOptions = {
+        from: '"Hackathon Team" <your@email.com>',
+        to: participant.email,
+        subject: "🎉 You’ve been accepted to the Hackathon!",
+        html: `
+          <p>Hi ${participant.fullName || participant.email},</p>
+          <p>Congratulations! You've been <strong>accepted</strong> to participate in our Hackathon 🎉</p>
+          <p>Please present the QR code below at check-in:</p>
+          <img src="${qrCodeData}" alt="QR Code" />
+          <p>We can’t wait to see you there!</p>
+        `
+      };
+
+      // Send email
+      await transporter.sendMail(mailOptions);
+    }
+
+    res.status(200).json({ message: "Acceptance emails sent successfully." });
+  } catch (error) {
+    console.error("Error sending emails:", error.message);
+    res.status(500).json({ message: "Failed to send emails", error: error.message });
+  }
+};
+
+
 module.exports = {
   signup,
   login,
   forgotPassword,
   resetPassword,
+  getAllCheckIns,
   checkIn,
+  sendAcceptanceEmail,
 };

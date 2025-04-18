@@ -1,4 +1,7 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
+
+
 
 const participantSchema = new mongoose.Schema({
   fullName: {
@@ -61,9 +64,27 @@ const participantSchema = new mongoose.Schema({
     type: String,
     enum: ['Absent', 'Attended'],
     default: 'Absent'
+  },
+  verificationToken: {
+    type: String
+  },
+  verificationTokenExpires: {
+    type: Date
   }
+  
 }, {
   timestamps: true
 });
+
+
+participantSchema.methods.generateVerificationToken = function () {
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+
+  this.verificationToken = verificationToken;
+  this.verificationTokenExpires = Date.now() + 1000 * 60 * 60 * 24; // 24 hours
+
+  return verificationToken;
+};
+
 
 module.exports = mongoose.model('Participant', participantSchema); 

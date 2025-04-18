@@ -4,6 +4,8 @@ const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
 const QRCode = require("qrcode");
 const jwt = require("jsonwebtoken");
+const Team = require('../models/Team'); // adjust path based on your project structure
+
 const { sendResetPasswordEmail } = require("../utils/emailService"); // Import email service
 
 /**
@@ -215,26 +217,35 @@ const getAllCheckIns = async (req, res) => {
  */
 const sendAcceptanceEmail = async (req, res, next) => {
   try {
-    const acceptedParticipants = await Participant.find({ status: "Accepted" });
+    // 1. Find accepted teams
+    const acceptedTeams = await Team.find({ status: "Accepted" }).populate("participants");
 
-    if (acceptedParticipants.length === 0) {
-      return res.status(404).json({ message: "No accepted participants found." });
+    if (acceptedTeams.length === 0) {
+      return res.status(404).json({ message: "No accepted teams found." });
     }
 
-    // Setup email transporter (replace with your SMTP config)
+    // 2. Extract all participants from accepted teams
+    const acceptedParticipants = acceptedTeams.flatMap(team => team.participants);
+
+    if (acceptedParticipants.length === 0) {
+      return res.status(404).json({ message: "No participants found in accepted teams." });
+    }
+
+    // 3. Setup email transporter
     const transporter = nodemailer.createTransport({
-      service: "Gmail",
+      host: 'smtp.ethereal.email',
+      port: 587,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
       }
     });
+    
 
+    // 4. Loop through participants
     for (const participant of acceptedParticipants) {
-      // Generate QR code with their unique ID or email
-      const qrCodeData = await QRCode.toDataURL(participant.email); // or participant._id
+      const qrCodeData = await QRCode.toDataURL(participant.email); // You can use participant._id instead
 
-      // Construct the email
       const mailOptions = {
         from: '"Hackathon Team" <your@email.com>',
         to: participant.email,
@@ -248,7 +259,6 @@ const sendAcceptanceEmail = async (req, res, next) => {
         `
       };
 
-      // Send email
       await transporter.sendMail(mailOptions);
     }
 
@@ -258,6 +268,7 @@ const sendAcceptanceEmail = async (req, res, next) => {
     res.status(500).json({ message: "Failed to send emails", error: error.message });
   }
 };
+
 
 
 module.exports = {

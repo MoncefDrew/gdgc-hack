@@ -6,12 +6,14 @@ const {
   resendVerificationEmail, 
   getAllParticipants, 
   getParticipantById, 
-  updateParticipant 
+  updateParticipant,
+  getParticipantsByName
 } = require('../controllers/participantController');
 const { 
   checkTeamCapacity, 
   checkTeamChangeCapacity 
 } = require('../middleware/teamValidation');
+const { validateNameSearch } = require('../middleware/nameValidation');
 
 // Create participant
 router.post('/register', checkTeamCapacity, createParticipant);
@@ -27,6 +29,9 @@ router.get('/get-all-participants', getAllParticipants);
 
 // Get participant by ID
 router.get('/get-participant-by-id/:id', getParticipantById);
+
+// Get participants by name
+router.get('/get-participants-by-name', validateNameSearch, getParticipantsByName);
 
 // Update participant
 router.put('/update-participant/:id', checkTeamChangeCapacity, updateParticipant);

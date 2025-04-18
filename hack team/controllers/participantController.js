@@ -306,4 +306,41 @@ exports.updateParticipant = async (req, res, next) => {
     
     next(error);
   }
+};
+
+/**
+ * @desc    Get participants by name
+ * @route   GET /api/participants/get-participants-by-name
+ * @access  Public
+ */
+exports.getParticipantsByName = async (req, res, next) => {
+  try {
+    const { name } = req.query;
+    
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name parameter is required'
+      });
+    }
+    
+    console.log('Searching for participants with name containing:', name);
+    
+    // Create a case-insensitive regex to search for the name
+    const nameRegex = new RegExp(name, 'i');
+    
+    // Search for participants with the name in their fullName field
+    const participants = await Participant.find({ fullName: { $regex: nameRegex } });
+    
+    console.log(`Found ${participants.length} participants matching the name: ${name}`);
+    
+    res.status(200).json({
+      success: true,
+      count: participants.length,
+      data: participants
+    });
+  } catch (error) {
+    console.log('Error searching participants by name:', error.message);
+    next(error);
+  }
 }; 

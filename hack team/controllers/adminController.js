@@ -249,13 +249,13 @@ const sendAcceptanceEmail = async (req, res, next) => {
       const mailOptions = {
         from: '"Hackathon Team" <your@email.com>',
         to: participant.email,
-        subject: "🎉 You’ve been accepted to the Hackathon!",
+        subject: "🎉 You've been accepted to the Hackathon!",
         html: `
           <p>Hi ${participant.fullName || participant.email},</p>
           <p>Congratulations! You've been <strong>accepted</strong> to participate in our Hackathon 🎉</p>
           <p>Please present the QR code below at check-in:</p>
           <img src="${qrCodeData}" alt="QR Code" />
-          <p>We can’t wait to see you there!</p>
+          <p>We can't wait to see you there!</p>
         `
       };
 
@@ -269,7 +269,72 @@ const sendAcceptanceEmail = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Send waitlist notification emails to unaccepted participants
+ * @route   POST /api/admin/send-waitlist-notification
+ * @access  Private (Admin)
+ */
+const sendWaitlistNotification = async (req, res, next) => {
+  try {
+    // 1. Find teams that are not accepted (those with status not equal to "Accepted")
+    const nonAcceptedTeams = await Team.find({ status: { $ne: "Accepted" } }).populate("participants");
 
+    if (nonAcceptedTeams.length === 0) {
+      return res.status(404).json({ message: "No waitlisted teams found." });
+    }
+
+    // 2. Extract all participants from non-accepted teams
+    const waitlistedParticipants = nonAcceptedTeams.flatMap(team => team.participants);
+
+    if (waitlistedParticipants.length === 0) {
+      return res.status(404).json({ message: "No participants found in waitlisted teams." });
+    }
+
+    // 3. Setup email transporter
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+    
+    // 4. Loop through participants and send waitlist emails
+    for (const participant of waitlistedParticipants) {
+      const mailOptions = {
+        from: '"Hackathon Team" <your@email.com>',
+        to: participant.email,
+        subject: "Hackathon Registration Update - Waitlist Status",
+        html: `
+          <p>Hi ${participant.fullName || participant.email},</p>
+          <p>Thank you for your interest in our Hackathon!</p>
+          <p>We received an overwhelming number of applications this year, and while your application was impressive, 
+          we are currently at capacity. <strong>Your application has been placed on our waitlist.</strong></p>
+          <p>If a spot becomes available, we will contact you immediately. We appreciate your understanding and hope
+          to be able to welcome you to the event.</p>
+          <p>If you have any questions, please don't hesitate to contact us.</p>
+          <p>Best regards,<br/>The Hackathon Team</p>
+        `
+      };
+
+      await transporter.sendMail(mailOptions);
+    }
+
+    res.status(200).json({ 
+      success: true,
+      message: "Waitlist notification emails sent successfully.",
+      count: waitlistedParticipants.length
+    });
+  } catch (error) {
+    console.error("Error sending waitlist emails:", error.message);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to send waitlist emails", 
+      error: error.message 
+    });
+  }
+};
 
 module.exports = {
   signup,
@@ -279,4 +344,5 @@ module.exports = {
   getAllCheckIns,
   checkIn,
   sendAcceptanceEmail,
+  sendWaitlistNotification,
 };

@@ -182,4 +182,90 @@ exports.getTeamStats = async (req, res, next) => {
     console.log('Error fetching team statistics:', error.message);
     next(error);
   }
+};
+
+/**
+ * @desc    Get team by code
+ * @route   GET /api/teams/by-code/:code
+ * @access  Public
+ */
+exports.getTeamByCode = async (req, res, next) => {
+  try {
+    const teamCode = req.params.code;
+    console.log('Looking for team with code:', teamCode);
+    
+    const team = await Team.findOne({ teamCode })
+      .populate('teamLeader', 'fullName email')
+      .populate('participants', 'fullName email');
+    
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Team not found with the provided code'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        name: team.name,
+        code: team.teamCode,
+        memberCount: team.participants.length,
+        teamLeader: team.teamLeader,
+        status: team.status
+      }
+    });
+  } catch (error) {
+    console.log('Error fetching team by code:', error.message);
+    next(error);
+  }
+};
+
+/**
+ * @desc    Validate team code
+ * @route   POST /api/teams/validate-code
+ * @access  Public
+ */
+exports.validateTeamCode = async (req, res, next) => {
+  try {
+    const { teamCode } = req.body;
+    
+    if (!teamCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Team code is required'
+      });
+    }
+    
+    console.log('Validating team code:', teamCode);
+    
+    const team = await Team.findOne({ teamCode });
+    
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: 'Invalid team code'
+      });
+    }
+    
+    // Check if team is full
+    if (team.participants.length >= 4) {
+      return res.status(400).json({
+        success: false,
+        error: 'Team is already full (max 4 members)'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        teamName: team.name,
+        memberCount: team.participants.length
+      },
+      message: 'Valid team code'
+    });
+  } catch (error) {
+    console.log('Error validating team code:', error.message);
+    next(error);
+  }
 }; 

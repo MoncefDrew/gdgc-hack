@@ -10,6 +10,7 @@ A simple Node.js + Express API for hackathon registration with MongoDB.
 - Track hackathon applications
 - Middleware-based validation
 - MVC architecture with controllers
+- Email notifications for acceptance and waitlist status
 
 ## Models
 
@@ -65,6 +66,7 @@ A simple Node.js + Express API for hackathon registration with MongoDB.
 - `GET /api/get-all-participants` - List all participants
 - `GET /api/get-participant-by-id/:id` - Get a single participant
 - `PUT /api/update-participant/:id` - Update a participant
+- `GET /api/participants/get-participants-by-name` - Search participants by name
 
 
 ### Admin 
@@ -73,6 +75,7 @@ A simple Node.js + Express API for hackathon registration with MongoDB.
 - `POST /api/admin/forgot-password` - demand a new password change  
 - `POST /api/admin/resetPassword` - change the password via the reset link  
 - `POST /api/admin/send-acceptance-email` - send acceptance email to all accepted teams with participants
+- `POST /api/admin/send-waitlist-notification` - send waitlist emails to all non-accepted participants
 - `POST /api/admin/check-in` - check in the participant
 - `GET /api/admin/get-all-check-ins` get all checked participants
 
@@ -120,7 +123,10 @@ The application uses middleware for various validations and operations:
    - `checkTeamCapacity`: Ensures teams don't exceed 4 members during participant registration
    - `checkTeamChangeCapacity`: Ensures teams don't exceed 4 members when participants change teams
 
-2. **General Middleware**:
+2. **Name Validation Middleware**:
+   - `validateNameSearch`: Ensures name search parameter is valid and has minimum length
+
+3. **General Middleware**:
    - Request logging middleware to log all incoming requests
    - Express JSON middleware for parsing request bodies
    - CORS middleware for cross-origin requests
@@ -138,6 +144,7 @@ The application follows the MVC (Model-View-Controller) pattern:
    - `getAllParticipants`: Retrieves all participants
    - `getParticipantById`: Retrieves a single participant
    - `updateParticipant`: Updates participant information
+   - `getParticipantsByName`: Searches participants by name
 
 2. **Team Controller**:
    - `createTeam`: Creates a new team
@@ -151,7 +158,9 @@ The application follows the MVC (Model-View-Controller) pattern:
    - `login`: sign in into the admin account
    - `forgotPassword`: request a link for the password reset
    - `resetPassword`: change the account password
-
-
+   - `checkIn`: Check in a participant during the event
+   - `getAllCheckIns`: Retrieve all participants who have checked in
+   - `sendAcceptanceEmail`: Send acceptance emails to all accepted teams
+   - `sendWaitlistNotification`: Send waitlist notifications to all non-accepted participants
 
 This controller-based architecture helps organize business logic, separates concerns, and makes the codebase more maintainable. 

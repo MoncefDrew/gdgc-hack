@@ -1,4 +1,5 @@
 const Team = require('../models/Team');
+const Participant = require('../models/Participant');
 
 /**
  * Middleware to check if a team has reached the maximum capacity of 4 participants
@@ -9,18 +10,31 @@ const Team = require('../models/Team');
  */
 const checkTeamCapacity = async (req, res, next) => {
   try {
-    // If no teamName in request, skip the check
-    if (!req.body.teamName) {
+    // For team leaders creating a new team, we skip the check
+    if (req.body.isTeamLeader === true) {
+      console.log('Middleware: Team leader registration, skipping capacity check');
       return next();
     }
 
-    console.log('Middleware: Checking team capacity for', req.body.teamName);
-    const team = await Team.findOne({ name: req.body.teamName });
+    // For team members, they must provide a team code
+    if (!req.body.teamCode) {
+      console.log('Middleware: Team member registration without team code');
+      return res.status(400).json({
+        success: false,
+        error: 'Team code is required for team members'
+      });
+    }
 
-    // If team doesn't exist yet, it's okay to proceed
+    console.log('Middleware: Checking team capacity for code', req.body.teamCode);
+    const team = await Team.findOne({ teamCode: req.body.teamCode });
+
+    // If team doesn't exist, reject
     if (!team) {
-      console.log('Middleware: Team does not exist yet, proceeding');
-      return next();
+      console.log('Middleware: Invalid team code');
+      return res.status(404).json({
+        success: false,
+        error: 'Invalid team code. Please check with your team leader.'
+      });
     }
 
     // Check if team already has 4 members
@@ -32,6 +46,9 @@ const checkTeamCapacity = async (req, res, next) => {
       });
     }
 
+    // Add the team name to the request for consistency
+    req.body.teamName = team.name;
+    
     console.log('Middleware: Team has capacity for more members');
     next();
   } catch (error) {
@@ -52,15 +69,14 @@ const checkTeamCapacity = async (req, res, next) => {
  */
 const checkTeamChangeCapacity = async (req, res, next) => {
   try {
-    // If no teamName in request or no id parameter, skip the check
-    if (!req.body.teamName || !req.params.id) {
+    // If no team code in request or no id parameter, skip the check
+    if (!req.body.teamCode || !req.params.id) {
       return next();
     }
 
     console.log('Middleware: Checking team change capacity');
 
     // Get current participant
-    const Participant = require('../models/Participant');
     const currentParticipant = await Participant.findById(req.params.id);
     
     if (!currentParticipant) {
@@ -70,15 +86,24 @@ const checkTeamChangeCapacity = async (req, res, next) => {
       });
     }
 
-    // If not changing teams, skip the check
-    if (currentParticipant.teamName === req.body.teamName) {
+    // If not changing teams (same team code), skip the check
+    if (currentParticipant.teamCode === req.body.teamCode) {
       console.log('Middleware: Not changing teams, skipping capacity check');
       return next();
     }
 
     // Check if new team exists and has capacity
-    const newTeam = await Team.findOne({ name: req.body.teamName });
-    if (newTeam && newTeam.participants.length >= 4) {
+    const newTeam = await Team.findOne({ teamCode: req.body.teamCode });
+    
+    if (!newTeam) {
+      console.log('Middleware: Invalid team code');
+      return res.status(404).json({
+        success: false,
+        error: 'Invalid team code. Please check with the team leader.'
+      });
+    }
+    
+    if (newTeam.participants.length >= 4) {
       console.log('Middleware: New team is at maximum capacity');
       return res.status(400).json({
         success: false,
@@ -86,7 +111,10 @@ const checkTeamChangeCapacity = async (req, res, next) => {
       });
     }
 
-    console.log('Middleware: New team has capacity or does not exist yet');
+    // Add the team name to the request for consistency
+    req.body.teamName = newTeam.name;
+
+    console.log('Middleware: New team has capacity');
     next();
   } catch (error) {
     console.error('Middleware error in checkTeamChangeCapacity:', error.message);

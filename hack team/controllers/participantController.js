@@ -1,6 +1,6 @@
 const Participant = require('../models/Participant');
 const Team = require('../models/Team');
-const { sendVerificationEmail } = require('../utils/emailService');
+const { sendVerificationEmail, sendTeamCodeEmail } = require('../utils/emailService');
 
 /**
  * @desc    Create a new participant
@@ -11,8 +11,17 @@ exports.createParticipant = async (req, res, next) => {
   try {
     console.log('Creating new participant:', req.body);
     
+    // Determine if this is a team leader or member
+    const isTeamLeader = req.body.isTeamLeader === true;
+    const teamCode = req.body.teamCode;
+    const teamName = req.body.teamName;
+    
     // Create the participant
-    const participant = await Participant.create(req.body);
+    const participant = await Participant.create({
+      ...req.body,
+      isTeamLeader
+    });
+    
     console.log('Participant created:', participant);
     
     // Generate verification token
@@ -27,31 +36,85 @@ exports.createParticipant = async (req, res, next) => {
       participant.fullName
     );
     
-    // Check if team exists with the given team name
-    const teamName = req.body.teamName;
-    console.log('Looking for team with name:', teamName);
+    let team;
     
-    let team = await Team.findOne({ name: teamName });
-    
-    if (team) {
+    // Team registration logic
+    if (isTeamLeader) {
+      console.log('Registering as team leader');
+      
+      // Generate a team code for the team leader
+      const generatedTeamCode = participant.generateTeamCode();
+      await participant.save();
+      
+      console.log('Team code generated:', generatedTeamCode);
+      
+      // Create a new team with this leader
+      team = await Team.create({
+        name: teamName,
+        teamCode: generatedTeamCode,
+        teamLeader: participant._id,
+        participants: [participant._id]
+      });
+      
+      console.log('New team created with leader:', team);
+      
+      // Send team code email to the team leader
+      await sendTeamCodeEmail(
+        participant.email,
+        generatedTeamCode,
+        participant.fullName,
+        teamName
+      );
+      
+    } else {
+      // This is a team member, must use an existing team code
+      if (!teamCode) {
+        return res.status(400).json({
+          success: false,
+          error: 'Team code is required for team members'
+        });
+      }
+      
+      console.log('Looking for team with code:', teamCode);
+      
+      // Find the team with the given code
+      team = await Team.findOne({ teamCode });
+      
+      if (!team) {
+        return res.status(404).json({
+          success: false,
+          error: 'Invalid team code. Please check with your team leader.'
+        });
+      }
+      
+      // Check team size limit
+      if (team.participants.length >= 4) {
+        return res.status(400).json({
+          success: false,
+          error: 'Team is already full (max 4 members)'
+        });
+      }
+      
       console.log('Adding participant to existing team');
+      
       // Add participant to existing team
       team.participants.push(participant._id);
       await team.save();
       console.log('Participant added to existing team');
-    } else {
-      console.log('Team not found, creating new team');
-      // Create a new team with this participant
-      team = await Team.create({
-        name: teamName,
-        participants: [participant._id]
-      });
-      console.log('New team created:', team);
+      
+      // Update participant with team name from the team in case it's different
+      participant.teamName = team.name;
+      participant.teamCode = teamCode;
+      await participant.save();
     }
     
     res.status(201).json({
       success: true,
-      data: participant,
+      data: {
+        participant,
+        isTeamLeader,
+        teamName: team.name
+      },
       message: 'Participant created successfully. Please check your email to verify your account.'
     });
   } catch (error) {
@@ -230,7 +293,7 @@ exports.updateParticipant = async (req, res, next) => {
     console.log('Updating participant with ID:', req.params.id);
     console.log('Update data:', req.body);
     
-    // Find the participant before update to get the current team name
+    // Find the participant before update to get the current team info
     const oldParticipant = await Participant.findById(req.params.id);
     if (!oldParticipant) {
       console.log('Participant not found for update');
@@ -247,41 +310,32 @@ exports.updateParticipant = async (req, res, next) => {
       { new: true, runValidators: true }
     );
     
-    // Check if team name changed
-    if (req.body.teamName && oldParticipant.teamName !== req.body.teamName) {
-      console.log('Team name changed from', oldParticipant.teamName, 'to', req.body.teamName);
+    // Handle team changes if there's a team code change
+    if (req.body.teamCode && oldParticipant.teamCode !== req.body.teamCode) {
+      console.log('Team code changed, updating teams');
       
-      // Remove participant from old team
-      const oldTeam = await Team.findOne({ name: oldParticipant.teamName });
-      if (oldTeam) {
-        console.log('Removing participant from old team');
-        oldTeam.participants = oldTeam.participants.filter(
-          p => p.toString() !== participant._id.toString()
-        );
-        await oldTeam.save();
-        console.log('Participant removed from old team');
+      // Remove from old team if exists
+      if (oldParticipant.teamCode) {
+        const oldTeam = await Team.findOne({ teamCode: oldParticipant.teamCode });
+        if (oldTeam) {
+          console.log('Removing from old team');
+          oldTeam.participants = oldTeam.participants.filter(
+            p => p.toString() !== participant._id.toString()
+          );
+          await oldTeam.save();
+        }
       }
       
-      // Add participant to new team or create it
-      let newTeam = await Team.findOne({ name: req.body.teamName });
+      // Add to new team
+      const newTeam = await Team.findOne({ teamCode: req.body.teamCode });
       if (newTeam) {
-        console.log('Adding participant to existing team');
-        if (!newTeam.participants.includes(participant._id)) {
-          newTeam.participants.push(participant._id);
-          await newTeam.save();
-        }
-        console.log('Participant added to existing team');
-      } else {
-        console.log('Creating new team for participant');
-        newTeam = await Team.create({
-          name: req.body.teamName,
-          participants: [participant._id]
-        });
-        console.log('New team created:', newTeam);
+        console.log('Adding to new team');
+        newTeam.participants.push(participant._id);
+        await newTeam.save();
       }
     }
     
-    console.log('Participant updated:', participant);
+    console.log('Participant updated successfully');
     res.status(200).json({
       success: true,
       data: participant
@@ -294,13 +348,6 @@ exports.updateParticipant = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         error: messages
-      });
-    }
-    
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email already exists'
       });
     }
     

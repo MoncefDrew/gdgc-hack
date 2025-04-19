@@ -6,6 +6,15 @@ const teamSchema = new mongoose.Schema({
     required: [true, 'Team name is required'],
     unique: true
   },
+  teamCode: {
+    type: String,
+    required: [true, 'Team code is required'],
+    unique: true
+  },
+  teamLeader: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Participant'
+  },
   participants: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Participant'

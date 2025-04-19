@@ -5,7 +5,9 @@ const {
   getAllTeams,
   getTeamById,
   updateTeam,
-  getTeamStats
+  getTeamStats,
+  getTeamByCode,
+  validateTeamCode
 } = require('../controllers/teamController');
 
 // Create team
@@ -16,6 +18,12 @@ router.get('/get-all-teams', getAllTeams);
 
 // Get team by ID
 router.get('/get-team-by-id/:id', getTeamById);
+
+// Get team by code
+router.get('/by-code/:code', getTeamByCode);
+
+// Validate team code
+router.post('/validate-code', validateTeamCode);
 
 // Update team
 router.put('/update-team/:id', updateTeam);

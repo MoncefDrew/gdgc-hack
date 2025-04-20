@@ -1,146 +1,94 @@
 const Participant = require('../models/Participant');
 const Team = require('../models/Team');
-const { sendVerificationEmail, sendTeamCodeEmail } = require('../utils/emailService');
+const { sendVerificationEmail, sendTeamCodeEmail,sendJoinedTeamEmail } = require('../utils/emailService');
 
 /**
- * @desc    Create a new participant
+ * @desc    Create a new participant (but don't save to DB until verified)
  * @route   POST /api/participants/register
  * @access  Public
  */
 exports.createParticipant = async (req, res, next) => {
   try {
-    console.log('Creating new participant:', req.body);
-    
-    // Determine if this is a team leader or member
-    const isTeamLeader = req.body.isTeamLeader === true;
-    const teamCode = req.body.teamCode;
-    const teamName = req.body.teamName;
-    
-    // Create the participant
-    const participant = await Participant.create({
-      ...req.body,
-      isTeamLeader
-    });
-    
-    console.log('Participant created:', participant);
-    
-    // Generate verification token
-    const verificationToken = participant.generateVerificationToken();
-    await participant.save();
-    console.log('Verification token generated:', verificationToken);
-    
-    // Send verification email
-    await sendVerificationEmail(
-      participant.email,
-      verificationToken,
-      participant.fullName
-    );
-    
-    let team;
-    
-    // Team registration logic
-    if (isTeamLeader) {
-      console.log('Registering as team leader');
-      
-      // Generate a team code for the team leader
-      const generatedTeamCode = participant.generateTeamCode();
-      await participant.save();
-      
-      console.log('Team code generated:', generatedTeamCode);
-      
-      // Create a new team with this leader
-      team = await Team.create({
-        name: teamName,
-        teamCode: generatedTeamCode,
-        teamLeader: participant._id,
-        participants: [participant._id]
-      });
-      
-      console.log('New team created with leader:', team);
-      
-      // Send team code email to the team leader
-      await sendTeamCodeEmail(
-        participant.email,
-        generatedTeamCode,
-        participant.fullName,
-        teamName
-      );
-      
-    } else {
-      // This is a team member, must use an existing team code
+    const { fullName, email, teamName, isTeamLeader, teamCode, ...rest } = req.body;
+    console.log('Processing new participant registration:', req.body);
+
+    // Check if email already exists
+    const existingParticipant = await Participant.findOne({ email });
+    if (existingParticipant) {
+      return res.status(400).json({ success: false, error: 'Email already exists' });
+    }
+
+    // For non-team leaders, validate team code immediately
+    if (!isTeamLeader) {
+      // Ensure teamCode is provided
       if (!teamCode) {
         return res.status(400).json({
           success: false,
           error: 'Team code is required for team members'
         });
       }
-      
+
       console.log('Looking for team with code:', teamCode);
-      
-      // Find the team with the given code
-      team = await Team.findOne({ teamCode });
-      
+
+      // Find existing team
+      const team = await Team.findOne({ teamCode });
+
       if (!team) {
         return res.status(404).json({
           success: false,
           error: 'Invalid team code. Please check with your team leader.'
         });
       }
-      
-      // Check team size limit
+
+      // Enforce team size limit
       if (team.participants.length >= 4) {
         return res.status(400).json({
           success: false,
           error: 'Team is already full (max 4 members)'
         });
       }
-      
-      console.log('Adding participant to existing team');
-      
-      // Add participant to existing team
-      team.participants.push(participant._id);
-      await team.save();
-      console.log('Participant added to existing team');
-      
-      // Update participant with team name from the team in case it's different
-      participant.teamName = team.name;
-      participant.teamCode = teamCode;
-      await participant.save();
     }
-    
+
+    // Create but don't save the participant yet
+    const participant = new Participant({
+      fullName,
+      email,
+      teamName,
+      isTeamLeader: isTeamLeader === true,
+      isVerified: false,
+      ...(teamCode && !isTeamLeader ? { teamCode } : {}), // Only set teamCode if not team leader
+      ...rest
+    });
+
+    // Generate verification token
+    const verificationToken = participant.generateVerificationToken();
+    console.log('Verification token generated:', verificationToken);
+
+    // Store in temporary collection or session
+    // For this implementation, we'll save to the database but mark as unverified
+    await participant.save();
+
+    // Send verification email
+    await sendVerificationEmail(email, verificationToken, fullName);
+
     res.status(201).json({
       success: true,
-      data: {
-        participant,
-        isTeamLeader,
-        teamName: team.name
-      },
-      message: 'Participant created successfully. Please check your email to verify your account.'
+      message: 'Registration initiated. Please check your email to verify your account.'
     });
   } catch (error) {
-    console.log('Error creating participant:', error.message);
-    
+    console.log('Error processing registration:', error.message);
+
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(val => val.message);
-      return res.status(400).json({
-        success: false,
-        error: messages
-      });
+      return res.status(400).json({ success: false, error: messages });
     }
-    
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email already exists'
-      });
-    }
-    
+
     next(error);
   }
 };
 
 /**
- * @desc    Verify participant email
+ * @desc    Verify participant email and complete registration
  * @route   GET /api/participants/verify-email/:token
  * @access  Public
  */
@@ -148,32 +96,101 @@ exports.verifyEmail = async (req, res, next) => {
   try {
     const token = req.params.token;
     console.log('Verifying email with token:', token);
-    
-    // Find participant with the token
+
     const participant = await Participant.findOne({
       verificationToken: token,
       verificationTokenExpires: { $gt: Date.now() }
     });
-    
+
     if (!participant) {
-      console.log('Invalid or expired verification token');
       return res.status(400).json({
         success: false,
         error: 'Invalid or expired verification token'
       });
     }
-    
-    // Mark as verified and remove token
+
+    console.log('Participant found:', participant.email);
+
+    // Now that the participant is verified, complete the registration process
     participant.isVerified = true;
     participant.verificationToken = undefined;
     participant.verificationTokenExpires = undefined;
+
+    let team;
+    
+    // Handle team creation/joining after verification
+    if (participant.isTeamLeader) {
+      console.log('Completing team leader registration');
+
+      // Generate team code now that the leader is verified
+      const generatedTeamCode = participant.generateTeamCode();
+      participant.teamCode = generatedTeamCode;
+
+      // Create a new team
+      team = await Team.create({
+        name: participant.teamName,
+        teamCode: generatedTeamCode,
+        teamLeader: participant._id,
+        participants: [participant._id]
+      });
+
+      console.log('Team created after verification:', team);
+
+      // Send team code email to the verified team leader
+      await sendTeamCodeEmail(
+        participant.email,
+        generatedTeamCode,
+        participant.fullName,
+        team.name
+      );
+    } else {
+      // For team members, join their team now
+      console.log('Completing team member registration with code:', participant.teamCode);
+      
+      // Find the team again (already validated during initial registration)
+      team = await Team.findOne({ teamCode: participant.teamCode });
+      
+      if (!team) {
+        return res.status(404).json({
+          success: false,
+          error: 'Team no longer exists. Please contact support.'
+        });
+      }
+
+      // Find team leader info to include in the email
+      const teamLeader = await Participant.findById(team.teamLeader);
+      const teamLeaderName = teamLeader ? teamLeader.fullName : 'Unknown';
+      
+      // Add verified participant to team
+      team.participants.push(participant._id);
+      await team.save();
+      
+      console.log('Participant added to team:', team.name);
+      
+      // Send email to the team member confirming they've joined the team
+      await sendJoinedTeamEmail(
+        participant.email,
+        participant.teamCode,
+        participant.fullName,
+        team.name,
+        teamLeaderName
+      );
+    }
+
     await participant.save();
-    
-    console.log('Email verified successfully for:', participant.email);
-    
+
     res.status(200).json({
       success: true,
-      message: 'Email verified successfully!'
+      data: {
+        participant: {
+          fullName: participant.fullName,
+          email: participant.email,
+          teamName: team.name,
+          isTeamLeader: participant.isTeamLeader
+        }
+      },
+      message: 'Email verified successfully! ' + 
+        (participant.isTeamLeader ? 'Your team has been created and team code sent to your email.' : 'You have been added to the team.')
     });
   } catch (error) {
     console.log('Error verifying email:', error.message);
@@ -390,4 +407,4 @@ exports.getParticipantsByName = async (req, res, next) => {
     console.log('Error searching participants by name:', error.message);
     next(error);
   }
-}; 
+};

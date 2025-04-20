@@ -3,7 +3,7 @@ const nodemailer = require('nodemailer');
 // Create a test transporter (for development)
 const createDevTransporter = () => {
   return nodemailer.createTransport({
-    host: 'smtp.ethereal.email',
+    host: 'smtp.gmail.com',
     port: 587,
     secure: false,
     auth: {
@@ -13,10 +13,11 @@ const createDevTransporter = () => {
   });
 };
 
+
 // Create a production transporter
 const createProdTransporter = () => {
   return nodemailer.createTransport({
-    service: process.env.EMAIL_SERVICE || 'gmail',
+    service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
@@ -39,7 +40,7 @@ const sendVerificationEmail = async (email, token, fullName) => {
   
   // Construct verification URL
   const baseURL = process.env.BASE_URL || 'http://localhost:3000';
-  const verificationURL = `${baseURL}/api/participants/verify-email/${token}`;
+  const verificationURL = `${baseURL}api/participants/verify-email/${token}`;
   
   console.log('Sending verification email to:', email);
   console.log('Verification URL:', verificationURL);
@@ -76,6 +77,7 @@ const sendVerificationEmail = async (email, token, fullName) => {
   }
 };
 
+
 // Send reset password email
 const sendResetPasswordEmail = async (email, resetLink, htmlContent) => {
   const transporter = getTransporter(); // <== Add this line!
@@ -104,8 +106,76 @@ const sendResetPasswordEmail = async (email, resetLink, htmlContent) => {
   }
 };
 
+// Send team code email to team leader
+const sendTeamCodeEmail = async (email,teamCode, fullName, teamName) => {
+  const transporter = getTransporter();
 
+  const mailOptions = {
+    from: process.env.EMAIL_FROM ,
+    to: email,
+    subject: 'Your Hackathon Team Code',
+    html: `
+      <h1>Team Code Information</h1>
+      <p>Hello ${fullName},</p>
+      <p>Thank you for registering as a team leader for <strong>${teamName}</strong></p>
+      <p>Here is your team code: <strong>${teamCode}</strong></p>
+      <p>Share this code with your team members so they can join your team during registration.</p>
+      <p>If you have any questions, feel free to reply to this email.</p>
+    `
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Team code email sent:', info.messageId);
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Preview URL:', nodemailer.getTestMessageUrl(info));
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error sending team code email:', error);
+    return false;
+  }
+};
+
+// Function to send email to team member who has joined a team
+const sendJoinedTeamEmail = async (email, teamCode, fullName, teamName, teamLeaderName) => {
+  const transporter = getTransporter();
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || 'hope.windler@ethereal.email',
+    to: email,
+    subject: `You have joined team ${teamName}!`,
+    html: `
+      <h1>Team Membership Confirmation</h1>
+      <p>Hello ${fullName},</p>
+      <p>Congratulations! Your email has been verified and you have successfully joined team <strong>${teamName}</strong>.</p>
+      <p>Your team code is: <strong>${teamCode}</strong></p>
+      <p>Your team is led by ${teamLeaderName}. You can connect with other team members through the platform.</p>
+      <p>If you have any questions, feel free to reply to this email.</p>
+    `
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Team membership email sent:', info.messageId);
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Preview URL:', nodemailer.getTestMessageUrl(info));
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error sending team membership email:', error);
+    return false;
+  }
+};
+
+// Don't forget to add this to your module exports
 module.exports = {
   sendVerificationEmail,
-  sendResetPasswordEmail
+  sendResetPasswordEmail,
+  sendTeamCodeEmail,
+  sendJoinedTeamEmail
 };

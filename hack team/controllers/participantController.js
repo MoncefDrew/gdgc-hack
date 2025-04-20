@@ -10,7 +10,6 @@ const { sendVerificationEmail, sendTeamCodeEmail,sendJoinedTeamEmail } = require
 exports.createParticipant = async (req, res, next) => {
   try {
     const { fullName, email, teamName, isTeamLeader, teamCode, ...rest } = req.body;
-    console.log('Processing new participant registration:', req.body);
 
     // Check if email already exists
     const existingParticipant = await Participant.findOne({ email });
@@ -28,7 +27,6 @@ exports.createParticipant = async (req, res, next) => {
         });
       }
 
-      console.log('Looking for team with code:', teamCode);
 
       // Find existing team
       const team = await Team.findOne({ teamCode });
@@ -62,7 +60,6 @@ exports.createParticipant = async (req, res, next) => {
 
     // Generate verification token
     const verificationToken = participant.generateVerificationToken();
-    console.log('Verification token generated:', verificationToken);
 
     // Store in temporary collection or session
     // For this implementation, we'll save to the database but mark as unverified
@@ -76,7 +73,6 @@ exports.createParticipant = async (req, res, next) => {
       message: 'Registration initiated. Please check your email to verify your account.'
     });
   } catch (error) {
-    console.log('Error processing registration:', error.message);
 
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(val => val.message);
@@ -95,7 +91,6 @@ exports.createParticipant = async (req, res, next) => {
 exports.verifyEmail = async (req, res, next) => {
   try {
     const token = req.params.token;
-    console.log('Verifying email with token:', token);
 
     const participant = await Participant.findOne({
       verificationToken: token,
@@ -109,7 +104,6 @@ exports.verifyEmail = async (req, res, next) => {
       });
     }
 
-    console.log('Participant found:', participant.email);
 
     // Now that the participant is verified, complete the registration process
     participant.isVerified = true;
@@ -120,7 +114,6 @@ exports.verifyEmail = async (req, res, next) => {
     
     // Handle team creation/joining after verification
     if (participant.isTeamLeader) {
-      console.log('Completing team leader registration');
 
       // Generate team code now that the leader is verified
       const generatedTeamCode = participant.generateTeamCode();
@@ -134,7 +127,6 @@ exports.verifyEmail = async (req, res, next) => {
         participants: [participant._id]
       });
 
-      console.log('Team created after verification:', team);
 
       // Send team code email to the verified team leader
       await sendTeamCodeEmail(
@@ -145,7 +137,6 @@ exports.verifyEmail = async (req, res, next) => {
       );
     } else {
       // For team members, join their team now
-      console.log('Completing team member registration with code:', participant.teamCode);
       
       // Find the team again (already validated during initial registration)
       team = await Team.findOne({ teamCode: participant.teamCode });
@@ -165,7 +156,6 @@ exports.verifyEmail = async (req, res, next) => {
       team.participants.push(participant._id);
       await team.save();
       
-      console.log('Participant added to team:', team.name);
       
       // Send email to the team member confirming they've joined the team
       await sendJoinedTeamEmail(
@@ -206,7 +196,6 @@ exports.verifyEmail = async (req, res, next) => {
 exports.resendVerificationEmail = async (req, res, next) => {
   try {
     const participantId = req.params.id;
-    console.log('Resending verification email for participant ID:', participantId);
     
     const participant = await Participant.findById(participantId);
     
@@ -219,7 +208,6 @@ exports.resendVerificationEmail = async (req, res, next) => {
     }
     
     if (participant.isVerified) {
-      console.log('Participant already verified');
       return res.status(400).json({
         success: false,
         error: 'Email already verified'
@@ -237,7 +225,6 @@ exports.resendVerificationEmail = async (req, res, next) => {
       participant.fullName
     );
     
-    console.log('Verification email resent to:', participant.email);
     
     res.status(200).json({
       success: true,
@@ -256,9 +243,7 @@ exports.resendVerificationEmail = async (req, res, next) => {
  */
 exports.getAllParticipants = async (req, res, next) => {
   try {
-    console.log('Fetching all participants');
     const participants = await Participant.find();
-    console.log(`Found ${participants.length} participants`);
     
     res.status(200).json({
       success: true,
@@ -278,18 +263,15 @@ exports.getAllParticipants = async (req, res, next) => {
  */
 exports.getParticipantById = async (req, res, next) => {
   try {
-    console.log('Fetching participant with ID:', req.params.id);
     const participant = await Participant.findById(req.params.id);
     
     if (!participant) {
-      console.log('Participant not found');
       return res.status(404).json({
         success: false,
         error: 'Participant not found'
       });
     }
     
-    console.log('Participant found:', participant);
     res.status(200).json({
       success: true,
       data: participant
@@ -307,13 +289,10 @@ exports.getParticipantById = async (req, res, next) => {
  */
 exports.updateParticipant = async (req, res, next) => {
   try {
-    console.log('Updating participant with ID:', req.params.id);
-    console.log('Update data:', req.body);
     
     // Find the participant before update to get the current team info
     const oldParticipant = await Participant.findById(req.params.id);
     if (!oldParticipant) {
-      console.log('Participant not found for update');
       return res.status(404).json({
         success: false,
         error: 'Participant not found'
@@ -329,13 +308,11 @@ exports.updateParticipant = async (req, res, next) => {
     
     // Handle team changes if there's a team code change
     if (req.body.teamCode && oldParticipant.teamCode !== req.body.teamCode) {
-      console.log('Team code changed, updating teams');
       
       // Remove from old team if exists
       if (oldParticipant.teamCode) {
         const oldTeam = await Team.findOne({ teamCode: oldParticipant.teamCode });
         if (oldTeam) {
-          console.log('Removing from old team');
           oldTeam.participants = oldTeam.participants.filter(
             p => p.toString() !== participant._id.toString()
           );
@@ -346,13 +323,11 @@ exports.updateParticipant = async (req, res, next) => {
       // Add to new team
       const newTeam = await Team.findOne({ teamCode: req.body.teamCode });
       if (newTeam) {
-        console.log('Adding to new team');
         newTeam.participants.push(participant._id);
         await newTeam.save();
       }
     }
     
-    console.log('Participant updated successfully');
     res.status(200).json({
       success: true,
       data: participant
@@ -388,7 +363,6 @@ exports.getParticipantsByName = async (req, res, next) => {
       });
     }
     
-    console.log('Searching for participants with name containing:', name);
     
     // Create a case-insensitive regex to search for the name
     const nameRegex = new RegExp(name, 'i');
@@ -396,7 +370,6 @@ exports.getParticipantsByName = async (req, res, next) => {
     // Search for participants with the name in their fullName field
     const participants = await Participant.find({ fullName: { $regex: nameRegex } });
     
-    console.log(`Found ${participants.length} participants matching the name: ${name}`);
     
     res.status(200).json({
       success: true,

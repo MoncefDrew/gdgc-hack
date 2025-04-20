@@ -7,10 +7,8 @@ const Team = require('../models/Team');
  */
 exports.createTeam = async (req, res, next) => {
   try {
-    console.log('Creating new team:', req.body);
     
     const team = await Team.create(req.body);
-    console.log('Team created:', team);
     
     res.status(201).json({
       success: true,
@@ -45,9 +43,7 @@ exports.createTeam = async (req, res, next) => {
  */
 exports.getAllTeams = async (req, res, next) => {
   try {
-    console.log('Fetching all teams');
     const teams = await Team.find().populate('participants');
-    console.log(`Found ${teams.length} teams`);
     
     res.status(200).json({
       success: true,
@@ -67,18 +63,15 @@ exports.getAllTeams = async (req, res, next) => {
  */
 exports.getTeamById = async (req, res, next) => {
   try {
-    console.log('Fetching team with ID:', req.params.id);
     const team = await Team.findById(req.params.id).populate('participants');
     
     if (!team) {
-      console.log('Team not found');
       return res.status(404).json({
         success: false,
         error: 'Team not found'
       });
     }
     
-    console.log('Team found:', team);
     res.status(200).json({
       success: true,
       data: team
@@ -96,13 +89,11 @@ exports.getTeamById = async (req, res, next) => {
  */
 exports.updateTeam = async (req, res, next) => {
   try {
-    console.log('Updating team with ID:', req.params.id);
-    console.log('Update data:', req.body);
+
     
     // Check if team exists
     const existingTeam = await Team.findById(req.params.id);
     if (!existingTeam) {
-      console.log('Team not found for update');
       return res.status(404).json({
         success: false,
         error: 'Team not found'
@@ -116,7 +107,6 @@ exports.updateTeam = async (req, res, next) => {
       { new: true, runValidators: true }
     ).populate('participants');
     
-    console.log('Team updated:', team);
     res.status(200).json({
       success: true,
       data: team
@@ -150,7 +140,6 @@ exports.updateTeam = async (req, res, next) => {
  */
 exports.getTeamStats = async (req, res, next) => {
   try {
-    console.log('Fetching team statistics');
     
     // Get counts by status
     const stats = await Team.aggregate([
@@ -172,7 +161,6 @@ exports.getTeamStats = async (req, res, next) => {
     const totalTeams = await Team.countDocuments();
     formattedStats.total = totalTeams;
     
-    console.log('Team statistics:', formattedStats);
     
     res.status(200).json({
       success: true,
@@ -192,7 +180,6 @@ exports.getTeamStats = async (req, res, next) => {
 exports.getTeamByCode = async (req, res, next) => {
   try {
     const teamCode = req.params.code;
-    console.log('Looking for team with code:', teamCode);
     
     const team = await Team.findOne({ teamCode })
       .populate('teamLeader', 'fullName email')
@@ -237,7 +224,6 @@ exports.validateTeamCode = async (req, res, next) => {
       });
     }
     
-    console.log('Validating team code:', teamCode);
     
     const team = await Team.findOne({ teamCode });
     
